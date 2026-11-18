@@ -1,0 +1,111 @@
+# Tag vX.Y.Z (or run it by hand on an existing tag): tests, then publishes with the tag's version.
+# - The NuGet package goes to GitHub Packages (the job's token) and to nuget.org through Trusted
+#   Publishing: GitHub's OIDC token is exchanged for a one-hour nuget.org key, no stored API key.
+#   The nuget.org policy names this repository and this file (publish.yml); see README "CI and release".
+# - The npm package's version is the committed package.json's: the tag must equal it (no npm version step).
+# - @d3sk/icon-picker-web goes to npm through Trusted Publishing (OIDC, no stored NPM_TOKEN) when
+#   configured on npmjs.com (or with NPM_TOKEN if provided as a fallback).
+# Public repository: GitHub-hosted runners only, never a self-hosted one.
+name: publish
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to publish (vX.Y.Z)
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  nuget:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # nuget.org Trusted Publishing
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: 1
+    steps:
+      - name: Check the tag
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::not a vX.Y.Z tag: $TAG"; exit 1; }
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - run: dotnet test D3sk.IconPicker.slnx -c Release
+      - name: Pack
+        run: dotnet pack D3sk.IconPicker.slnx -c Release -o artifacts -p:Version="$VERSION"
+      - name: Push to GitHub Packages
+        env:
+          GH_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --source "https://nuget.pkg.github.com/${GITHUB_REPOSITORY_OWNER}/index.json"
+          --api-key "$GH_PACKAGES_TOKEN"
+          --skip-duplicate
+      # Asked for just before the push: the key lives one hour and each OIDC token buys one key.
+      - name: nuget.org login (OIDC -> short-lived key)
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ vars.NUGET_USER || github.repository_owner }}
+      - name: Push to nuget.org
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --source https://api.nuget.org/v3/index.json
+          --api-key "$NUGET_API_KEY"
+          --skip-duplicate
+
+  npm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # npm Trusted Publishing (OIDC + provenance)
+    defaults:
+      run:
+        working-directory: packages/icon-picker
+    steps:
+      - name: Check the tag
+        working-directory: .
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::not a vX.Y.Z tag: $TAG"; exit 1; }
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - name: Check the tag matches package.json
+        run: |
+          PKG=$(node -p "require('./package.json').version")
+          [ "$PKG" = "$VERSION" ] || { echo "::error::tag $TAG differs from package.json version $PKG"; exit 1; }
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
