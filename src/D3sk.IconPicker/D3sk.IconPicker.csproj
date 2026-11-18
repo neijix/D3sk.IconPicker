@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>D3sk.IconPicker</PackageId>
+    <Version>0.1.0</Version>
+    <Description>An icon picker's rules with no UI types, BCL only. Shared with the web package @d3sk/icon-picker-web.</Description>
+    <Authors>neijix</Authors>
+    <Copyright>Copyright (c) 2026 neijix</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/neijix/D3sk.IconPicker</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/neijix/D3sk.IconPicker</PackageProjectUrl>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+</Project>

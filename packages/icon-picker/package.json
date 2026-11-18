@@ -1,0 +1,26 @@
+{
+  "name": "@d3sk/icon-picker-web",
+  "version": "0.1.0",
+  "description": "An icon picker for any web page: a searchable grid of icons, no framework.",
+  "type": "module",
+  "license": "MIT",
+  "author": "neijix",
+  "repository": { "type": "git", "url": "git+https://github.com/neijix/D3sk.IconPicker.git", "directory": "packages/icon-picker" },
+  "homepage": "https://github.com/neijix/D3sk.IconPicker/tree/main/packages/icon-picker#readme",
+  "keywords": ["d3skhand", "icon", "picker"],
+  "exports": {
+    ".": "./src/index.js",
+    "./picker.css": "./picker.css",
+    "./package.json": "./package.json"
+  },
+  "files": ["src", "picker.css", "README.md", "LICENSE"],
+  "sideEffects": ["*.css"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test"
+  },
+  "publishConfig": { "access": "public" },
+  "devDependencies": {
+    "happy-dom": "^20.0.0"
+  }
+}
