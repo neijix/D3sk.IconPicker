@@ -13,14 +13,18 @@
     "./picker.css": "./picker.css",
     "./package.json": "./package.json"
   },
-  "files": ["src", "picker.css", "README.md", "LICENSE"],
+  "files": ["src", "picker.css", "icon-picker.global.js", "README.md", "LICENSE"],
   "sideEffects": ["*.css"],
   "engines": { "node": ">=20" },
   "scripts": {
+    "build": "node scripts/build-global.mjs",
+    "pretest": "node scripts/build-global.mjs",
+    "prepack": "node scripts/build-global.mjs",
     "test": "node --test"
   },
   "publishConfig": { "access": "public" },
   "devDependencies": {
+    "esbuild": "0.28.2",
     "happy-dom": "^20.0.0"
   }
 }
